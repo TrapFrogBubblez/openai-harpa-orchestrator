@@ -1,0 +1,16 @@
+# Environment
+.env
+*.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Data
+*.json
+*.db
+
+# Virtual environments
+venv/
+env/
