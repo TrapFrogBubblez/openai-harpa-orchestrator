@@ -1,4 +1,4 @@
-# OpenAI-HARPA Orchestrator
+# Recursive Time Agent
 
 Persistent AI agent combining GPT-4o reasoning with HARPA browser automation.
 
@@ -11,8 +11,8 @@ Persistent AI agent combining GPT-4o reasoning with HARPA browser automation.
 
 ### Installation
 \`\`\`bash
-git clone https://github.com/TrapFrogBubblez/openai-harpa-orchestrator.git
-cd openai-harpa-orchestrator
+git clone https://github.com/TrapFrogBubblez/Recursive Time Agent.git
+cd Recursive Time Agent
 python3 -m venv myenv
 source myenv/bin/activate
 pip install -r requirements.txt
