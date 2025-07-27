@@ -3,54 +3,86 @@ from openai import OpenAI
 from config import Config
 from state_manager import save_state, load_state
 from harpa_integration import execute_harpa
-if Config.OPENAI_API_KEY.startswith("sk-placeholder"):
-    print("\n⚠️ WARNING: Using placeholder API key")
-    print("Please set your real OpenAI API key in .env file\n")
-    # Exit or continue with dummy logic
-    exit(1)
 
-
+# Initialize OpenAI client
 client = OpenAI(api_key=Config.OPENAI_API_KEY)
 
+# Validate API key
+if Config.OPENAI_API_KEY.startswith("sk-placeholder") or Config.OPENAI_API_KEY == "":
+    print("\n⚠️ WARNING: Using placeholder API key")
+    print("Please set your real OpenAI API key in .env file\n")
+    exit(1)
+
 def run_task(task_description: str, task_id: str = "default_task"):
+    """
+    Execute an AI-powered task using OpenAI and HARPA integration
+    
+    Args:
+        task_description: Natural language description of the task
+        task_id: Unique identifier for persisting task state
+    """
+    # Load previous state if exists
     state = load_state(task_id)
     
+    # Initialize messages with system prompt
     messages = [
-        {"role": "system", "content": "You control HARPA AI. Format commands concisely as /scrape [URL] or /navigate [action]"},
-        {"role": "user", "content": f"Task: {task_description}\n\nCurrent state: {str(state['progress'][-2:])}"}
+        {
+            "role": "system", 
+            "content": "You control HARPA AI. Format commands for browser automation."
+        },
+        {
+            "role": "user", 
+            "content": f"Task: {task_description}\n\nCurrent state: {state or 'No previous state'}"
+        }
     ]
     
     while True:
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=messages,
-            temperature=0.1
-        )
-        gpt_instruction = response.choices[0].message.content
-        
-        if "TASK_COMPLETE" in gpt_instruction:
-            return gpt_instruction
-        
-        print(f"\n>>> Executing: {gpt_instruction[:80]}...")
-        harpa_result = execute_harpa(gpt_instruction)
-        print(f"<<< HARPA Output ({len(harpa_result)} chars)")
-        
-        state['progress'].append({
-            "step": len(state['progress']) + 1,
-            "gpt_instruction": gpt_instruction,
-            "harpa_result": harpa_result[:500] + "..." if len(harpa_result) > 500 else harpa_result
-        })
-        save_state(task_id, state)
-        
-        messages.append({"role": "assistant", "content": gpt_instruction})
-        messages.append({"role": "user", "content": f"HARPA OUTPUT:\n{harpa_result}\n\nWhat next?"})
+        try:
+            # Make API call to OpenAI with proper parameters
+            response = client.chat.completions.create(
+                model=Config.AI_MODEL,
+                messages=messages,
+                max_tokens=Config.MAX_TOKENS,
+                timeout=Config.REQUEST_TIMEOUT
+            )
+            
+            # Extract AI response
+            ai_response = response.choices[0].message.content
+            print(f"AI Response: {ai_response}")
+            
+            # Execute command through HARPA
+            result = execute_harpa(ai_response)
+            print(f"HARPA Result: {result}")
+            
+            # Update state and messages
+            state = {"last_action": ai_response, "result": result}
+            save_state(task_id, state)
+            
+            # Add AI response to message history
+            messages.append({"role": "assistant", "content": ai_response})
+            
+            # Check for task completion
+            if "[TASK COMPLETE]" in ai_response:
+                print("Task completed successfully!")
+                return result
+                
+        except Exception as e:
+            print(f"Error: {str(e)}")
+            return None
 
 if __name__ == "__main__":
-    result = run_task(
-        task_description="Find return policy for Sony headphones on BestBuy.com",
-        task_id="bestbuy_return_policy"
-    )
-    print("\n" + "="*50)
-    print("TASK COMPLETE")
-    print("="*50)
-    print(result)
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='AI Task Orchestrator')
+    parser.add_argument('--task', type=str, required=True, help='Task description')
+    parser.add_argument('--task-id', type=str, default="default_task", help='Task identifier')
+    
+    args = parser.parse_args()
+    
+    print(f"Starting task: {args.task}")
+    result = run_task(args.task, args.task_id)
+    
+    if result:
+        print(f"Final Result: {result}")
+    else:
+        print("Task failed")
