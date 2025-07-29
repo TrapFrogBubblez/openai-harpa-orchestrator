@@ -2,12 +2,12 @@
 .env
 *.env
 
-# Python
+# Python cache
 __pycache__/
 *.pyc
 *.pyo
 
-# Data
+# Local data artifacts
 *.json
 *.db
 
@@ -15,6 +15,3 @@ __pycache__/
 venv/
 env/
 myenv/
-__pycache__/
-*.pyc
-.env
