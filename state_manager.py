@@ -35,15 +35,3 @@ def load_state(task_id: str) -> Optional[Dict]:
     except Exception as e:
         logger.error(f"Unexpected error loading state for task_id '{task_id}': {e}. Returning default state.")
         return {"task": task_id, "progress": []}
-if __name__ == "__main__":
-    test_task_id = "test_task"
-    test_state = {"progress": ["step1 done", "step2 done"]}
-    
-    print("Saving test state...")
-    save_state(test_task_id, test_state)
-    
-    print("Loading test state...")
-    loaded = load_state(test_task_id)
-    
-    assert loaded == test_state, "Loaded state does not match saved state!"
-    print("State Manager test passed successfully!")
