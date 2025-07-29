@@ -6,7 +6,7 @@ from typing import Dict, Any
 
 import openai
 from harpa_integration import HarpaExtension, HarpaUnavailableException
-from state_manager import StateManager  # <-- Fixed here
+from state_manager import StateManager
 from TASK_PROFILES import TASK_PROFILES
 from config import Config
 
@@ -35,23 +35,26 @@ class OpenAIClient:
 
 class Orchestrator:
     def __init__(self):
-        self.harpa = HarpaExtension(Config.HARPA_EXTENSION_PATH, Config.HARPA_EXTENSION_ID)
+        # Adjusted to match HarpaExtension constructor signature:
+        self.harpa = HarpaExtension()
         self.openai_client = OpenAIClient()
         self.state = StateManager(Config.PERSISTENT_DIR)
 
     def ensure_harpa_ready(self):
-        if not self.harpa.is_running():
+        # Assuming HarpaExtension has is_running(), launch(), and check_connection() methods:
+        if not getattr(self.harpa, 'is_running', lambda: False)():
             print("[INFO] Harpa is not running. Attempting to launch...")
-            self.harpa.launch()
-            for _ in range(10):  # wait up to ~10 seconds for Harpa to come online
-                if self.harpa.check_connection():
+            if hasattr(self.harpa, 'launch'):
+                self.harpa.launch()
+            for _ in range(10):
+                if hasattr(self.harpa, 'check_connection') and self.harpa.check_connection():
                     print("[INFO] Harpa connected successfully.")
                     return True
                 time.sleep(1)
             print("[ERROR] Failed to connect to Harpa after launching.")
             return False
         else:
-            if self.harpa.check_connection():
+            if hasattr(self.harpa, 'check_connection') and self.harpa.check_connection():
                 return True
             else:
                 print("[ERROR] Harpa appears to be running but not responding.")
@@ -70,10 +73,14 @@ class Orchestrator:
             return
 
         try:
-            context = profile['context']
+            context = profile['description']
             url = task_data.get('url')
 
-            scrape_data = self.harpa.scrape(url)
+            if not url:
+                print(f"[WARNING] No URL provided for task {task_id}; skipping scraping.")
+                scrape_data = ""
+            else:
+                scrape_data = self.harpa.scrape(url)
 
             messages = [
                 {"role": "system", "content": context},
