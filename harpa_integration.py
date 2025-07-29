@@ -6,14 +6,14 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
 class HarpaUnavailableException(Exception):
     """Raised when HARPA is unavailable or execution fails."""
     pass
 
-
 class HarpaExtension:
-    def __init__(self):
+    def __init__(self, extension_path: str, extension_id: str):
+        self.extension_path = extension_path
+        self.extension_id = extension_id
         self.browser = None
         self.page = None
 
@@ -23,14 +23,14 @@ class HarpaExtension:
         self.browser = playwright.chromium.launch_persistent_context(
             user_data_dir="/tmp/harpa-profile",
             args=[
-                f"--disable-extensions-except={Config.HARPA_EXTENSION_PATH}",
-                f"--load-extension={Config.HARPA_EXTENSION_PATH}",
+                f"--disable-extensions-except={self.extension_path}",
+                f"--load-extension={self.extension_path}",
                 "--headless=new"
             ]
         )
         self.page = self.browser.new_page()
         logger.info("Opening HARPA popup...")
-        self.page.goto(f"chrome-extension://{Config.HARPA_EXTENSION_ID}/popup.html")
+        self.page.goto(f"chrome-extension://{self.extension_id}/popup.html")
 
     def execute_command(self, command: str) -> str:
         try:
