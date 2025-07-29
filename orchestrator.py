@@ -5,7 +5,7 @@ import traceback
 from typing import Dict, Any
 
 import openai
-from harpa_integration import HarpaExtension
+from harpa_integration import HarpaExtension, HarpaUnavailableException
 from state_manage import StateManager
 from TASK_PROFILES import TASK_PROFILES
 from config import Config
@@ -39,6 +39,24 @@ class Orchestrator:
         self.openai_client = OpenAIClient()
         self.state = StateManager(Config.PERSISTENT_DIR)
 
+    def ensure_harpa_ready(self):
+        if not self.harpa.is_running():
+            print("[INFO] Harpa is not running. Attempting to launch...")
+            self.harpa.launch()
+            for _ in range(10):  # wait up to ~10 seconds for Harpa to come online
+                if self.harpa.check_connection():
+                    print("[INFO] Harpa connected successfully.")
+                    return True
+                time.sleep(1)
+            print("[ERROR] Failed to connect to Harpa after launching.")
+            return False
+        else:
+            if self.harpa.check_connection():
+                return True
+            else:
+                print("[ERROR] Harpa appears to be running but not responding.")
+                return False
+
     def execute_task(self, task_id: str, task_data: Dict[str, Any]):
         print(f"[INFO] Executing task: {task_id}")
         profile = TASK_PROFILES.get(task_id)
@@ -47,9 +65,14 @@ class Orchestrator:
             print(f"[ERROR] No profile found for task_id: {task_id}")
             return
 
+        if not self.ensure_harpa_ready():
+            print(f"[ERROR] Skipping task {task_id} due to Harpa being unavailable.")
+            return
+
         try:
             context = profile['context']
             url = task_data.get('url')
+
             scrape_data = self.harpa.scrape(url)
 
             messages = [
@@ -63,8 +86,10 @@ class Orchestrator:
                 self.state.save_result(task_id, reply)
             else:
                 print(f"[WARNING] No response from OpenAI for task {task_id}")
+        except HarpaUnavailableException as he:
+            print(f"[ERROR] Harpa became unavailable during task {task_id}: {he}")
         except Exception as e:
-            print(f"[ERROR] Exception while executing task {task_id}:", e)
+            print(f"[ERROR] Exception while executing task {task_id}: {e}")
             traceback.print_exc()
 
     def run(self):
