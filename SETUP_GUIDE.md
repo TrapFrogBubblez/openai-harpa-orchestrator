@@ -22,11 +22,11 @@ On Windows (PowerShell):
 
     .\myenv\Scripts\Activate.ps1
 
-4. Install Required Dependencies
+4. Install Required Dependencies:
 
     pip install -r requirements.txt
 
-5. Install Browser Engines for Playwright
+5. Install Browser Engines for Playwright:
 
     python -m playwright install
 
