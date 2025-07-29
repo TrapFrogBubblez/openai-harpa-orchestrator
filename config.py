@@ -8,7 +8,7 @@ class Config:
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "sk-placeholder")
     MAX_TOKENS = 500  # Reduced from default 4096 to prevent quota overuse
     REQUEST_TIMEOUT = 30  # Increased from default 10 seconds
-    OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
+    AI_MODEL = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
     
     # HARPA Configuration
     HARPA_EXTENSION_PATH = "/path/to/harpa-extension"
