@@ -6,7 +6,7 @@ from typing import Dict, Any
 
 import openai
 from harpa_integration import HarpaExtension, HarpaUnavailableException
-from state_manage import StateManager
+from state_manager import StateManager  # <-- Fixed here
 from TASK_PROFILES import TASK_PROFILES
 from config import Config
 
