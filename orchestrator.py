@@ -1,88 +1,83 @@
 import os
-from openai import OpenAI
+import json
+import time
+import traceback
+from typing import Dict, Any
+
+import openai
+from harpa_integration import HarpaExtension
+from state_manage import StateManager
+from TASK_PROFILES import TASK_PROFILES
 from config import Config
-from state_manager import save_state, load_state
-from harpa_integration import execute_harpa
 
-# Initialize OpenAI client
-client = OpenAI(api_key=Config.OPENAI_API_KEY)
+openai.api_key = Config.OPENAI_API_KEY
 
-# Validate API key
-if Config.OPENAI_API_KEY.startswith("sk-placeholder") or Config.OPENAI_API_KEY == "":
-    print("\n⚠️ WARNING: Using placeholder API key")
-    print("Please set your real OpenAI API key in .env file\n")
-    exit(1)
 
-def run_task(task_description: str, task_id: str = "default_task"):
-    """
-    Execute an AI-powered task using OpenAI and HARPA integration
-    
-    Args:
-        task_description: Natural language description of the task
-        task_id: Unique identifier for persisting task state
-    """
-    # Load previous state if exists
-    state = load_state(task_id)
-    
-    # Initialize messages with system prompt
-    messages = [
-        {
-            "role": "system", 
-            "content": "You control HARPA AI. Format commands for browser automation."
-        },
-        {
-            "role": "user", 
-            "content": f"Task: {task_description}\n\nCurrent state: {state or 'No previous state'}"
-        }
-    ]
-    
-    while True:
+class OpenAIClient:
+    def __init__(self):
+        self.model = Config.AI_MODEL
+        self.max_tokens = Config.MAX_TOKENS
+        self.timeout = Config.REQUEST_TIMEOUT
+
+    def chat(self, messages):
         try:
-            # Make API call to OpenAI with proper parameters
-            response = client.chat.completions.create(
-                model=Config.AI_MODEL,
+            response = openai.ChatCompletion.create(
+                model=self.model,
                 messages=messages,
-                max_tokens=Config.MAX_TOKENS,
-                timeout=Config.REQUEST_TIMEOUT
+                max_tokens=self.max_tokens,
+                timeout=self.timeout,
             )
-            
-            # Extract AI response
-            ai_response = response.choices[0].message.content
-            print(f"AI Response: {ai_response}")
-            
-            # Execute command through HARPA
-            result = execute_harpa(ai_response)
-            print(f"HARPA Result: {result}")
-            
-            # Update state and messages
-            state = {"last_action": ai_response, "result": result}
-            save_state(task_id, state)
-            
-            # Add AI response to message history
-            messages.append({"role": "assistant", "content": ai_response})
-            
-            # Check for task completion
-            if "[TASK COMPLETE]" in ai_response:
-                print("Task completed successfully!")
-                return result
-                
+            return response['choices'][0]['message']['content']
         except Exception as e:
-            print(f"Error: {str(e)}")
+            print("OpenAI API error:", e)
             return None
 
+
+class Orchestrator:
+    def __init__(self):
+        self.harpa = HarpaExtension(Config.HARPA_EXTENSION_PATH, Config.HARPA_EXTENSION_ID)
+        self.openai_client = OpenAIClient()
+        self.state = StateManager(Config.PERSISTENT_DIR)
+
+    def execute_task(self, task_id: str, task_data: Dict[str, Any]):
+        print(f"[INFO] Executing task: {task_id}")
+        profile = TASK_PROFILES.get(task_id)
+
+        if not profile:
+            print(f"[ERROR] No profile found for task_id: {task_id}")
+            return
+
+        try:
+            context = profile['context']
+            url = task_data.get('url')
+            scrape_data = self.harpa.scrape(url)
+
+            messages = [
+                {"role": "system", "content": context},
+                {"role": "user", "content": scrape_data}
+            ]
+
+            reply = self.openai_client.chat(messages)
+            if reply:
+                print(f"[RESULT] Task {task_id} Output:\n{reply}\n")
+                self.state.save_result(task_id, reply)
+            else:
+                print(f"[WARNING] No response from OpenAI for task {task_id}")
+        except Exception as e:
+            print(f"[ERROR] Exception while executing task {task_id}:", e)
+            traceback.print_exc()
+
+    def run(self):
+        print("[INFO] Orchestrator started. Listening for tasks...")
+        while True:
+            task = self.state.fetch_next_task()
+            if task:
+                self.execute_task(task['id'], task['data'])
+            else:
+                print("[INFO] No new tasks. Sleeping...")
+                time.sleep(5)
+
+
 if __name__ == "__main__":
-    import argparse
-    
-    parser = argparse.ArgumentParser(description='AI Task Orchestrator')
-    parser.add_argument('--task', type=str, required=True, help='Task description')
-    parser.add_argument('--task-id', type=str, default="default_task", help='Task identifier')
-    
-    args = parser.parse_args()
-    
-    print(f"Starting task: {args.task}")
-    result = run_task(args.task, args.task_id)
-    
-    if result:
-        print(f"Final Result: {result}")
-    else:
-        print("Task failed")
+    orchestrator = Orchestrator()
+    orchestrator.run()
