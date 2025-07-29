@@ -3,8 +3,8 @@ Setup Guide for Recursive Time Agent
 Follow these steps to get the Recursive Time Agent up and running on your system:
 1. Clone the Repository
 
-git clone https://github.com/TrapFrogBubblez/Recursive-Time-Agent.git
-cd Recursive-Time-Agent
+git clone https://github.com/TrapFrogBubblez/openai-harpa-orchestrator.git
+cd openai-harpa-orchestrator
 
 2. Create a Virtual Environment
 
