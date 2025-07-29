@@ -10,7 +10,7 @@ cd openai-harpa-orchestrator
 
 Create an isolated Python environment to manage dependencies:
 
-python3 -m venv myenv
+    python3 -m venv myenv
 
 3. Activate the Virtual Environment
 
