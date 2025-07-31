@@ -50,13 +50,9 @@ def run_task(task_description: str, task_id: str = "default_task"):
             ai_response = response.choices[0].message.content
             print(f"AI Response: {ai_response}")
             
-            # Skip execution if the response includes non-navigable targets
-            if "chrome-extension://" in ai_response.lower():
-            print("⚠️ Skipping HARPA execution — AI suggested invalid chrome-extension URL.")
-            return None
-
-            # Continue normal execution
+            # Execute command through HARPA
             result = execute_harpa(ai_response)
+            print(f"HARPA Result: {result}")
             
             # Update state and messages
             state = {"last_action": ai_response, "result": result}
