@@ -18,6 +18,11 @@ Transform natural language commands into automated browser actions using GPT-4o 
 
 ## 🚀 Installation
 
+### Step 1: Download Git
+```bash
+winget install --id Git.Git -e --source winget
+```
+
 ### Step 1: Clone the Repository
 ```bash
 git clone https://github.com/TrapFrogBubblez/openai-harpa-orchestrator.git
